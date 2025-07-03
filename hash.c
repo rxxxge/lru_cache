@@ -3,6 +3,7 @@
 #include <stdlib.h>
 #include <math.h>
 #include <stdbool.h>
+#include <string.h>
 
 /*
  * 32 bit FNV-0 hash type
@@ -21,11 +22,6 @@ typedef u_int32_t Fnv32_t;
 #define FNV1_32A_INIT FNV1_32_INIT
 
 /*
- * Temporary
- */
-#define ARR_SIZE 17
-
-/*
  * Define for debug purposes
  */
 #define DEBUG
@@ -35,15 +31,16 @@ typedef u_int32_t Fnv32_t;
  */
 #define SUCCESS 0
 #define IS_NULL -1
-#define ARRAY_IS_NULL -2
+#define FAILURE -2
 #define TABLE_IS_NULL -3
 #define ERR_ARRAY_IS_FULL -4
 #define KEY_NOT_FOUND -5 
 
 /*
- * Maximum load factor alpha
+ * Maximum/minimum load factor alpha
  */
 #define ALPHA_MAX 0.72
+#define ALPHA_MIN 0.18
 
 /*
  * Type of element in the array
@@ -54,7 +51,7 @@ typedef struct HashEntry {
 } HashEntry;
 
 typedef struct HashTable {
-    unsigned int table_size;
+    size_t table_size;
     unsigned int count_entry;
     float load_factor;
     HashEntry **table;
@@ -68,7 +65,7 @@ typedef struct HashTable {
 /*
  * Hash function
  */
-Fnv32_t fnv_32a_str(char *str, Fnv32_t hval) {
+Fnv32_t fnv_32a_str(const char *str, Fnv32_t hval) {
     unsigned char *s = (unsigned char *)str;
 
     while (*s) {
@@ -83,8 +80,19 @@ Fnv32_t fnv_32a_str(char *str, Fnv32_t hval) {
 
 /*
  * UTILITY
- * Update the load factor
+ * Get index using key and hash function
  */
+
+int get_index(const char *key, size_t table_size) {
+    Fnv32_t hval = fnv_32a_str(key, FNV1_32A_INIT);
+    int index = (hval % table_size + table_size) % table_size;
+#ifdef DEBUG
+    printf("hash value from '%s': %d, init hval: %d\n", key, hval, FNV1_32A_INIT);
+#endif
+
+    return index; 
+}
+
 
 int resize_table(HashTable *table, bool size_up) {
     if (size_up) {
@@ -98,7 +106,7 @@ int resize_table(HashTable *table, bool size_up) {
         /*
          * Copy every element from old table array into new one
          */
-        for (unsigned int i = 0; i < table->table_size; i++) {
+        for (size_t i = 0; i < table->table_size; i++) {
             if (table->table[i])
                 new_table[i] = table->table[i];
         }
@@ -111,21 +119,42 @@ int resize_table(HashTable *table, bool size_up) {
         /*
          * Assign a new table array
          */
-        table->table_size *= 2;
+        table->table_size = new_size;
         table->table = new_table;
     } else {
-        /*
-         * TODO: Size down
-         */
-        printf("Unimplemented!\n");
+        size_t new_size = table->table_size / 2;
+        HashEntry **new_table = (HashEntry **)calloc(new_size, sizeof(HashEntry *));
+        if (new_table == NULL) {
+            printf("Could not allocate new table array!\n");
+            return IS_NULL; 
+        }
+
+        for (size_t i = 0; i < table->table_size; i++) {
+            if (table->table[i]) {
+                if (i < new_size) {
+                    new_table[i] = table->table[i];
+                } else {
+                    int index = get_index(table->table[i]->key, new_size);
+                    new_table[index] = table->table[i];
+                } 
+            }
+        }
+
+        free(table->table);
+
+        table->table_size = new_size;
+        table->table = new_table;
     }
     
     return SUCCESS;
 }
 
+/*
+ * UTILITY
+ * Update the load factor
+ */
 void update_load_factor(HashTable *table) {
     table->load_factor = (float)table->count_entry / (float)table->table_size;
-
 
     /*
      * Resize array by 2x its size if load factor close to 0.72 or higher
@@ -135,13 +164,14 @@ void update_load_factor(HashTable *table) {
          * Resize up the array
          */ 
         resize_table(table, true);
-    }
+    } 
 
     /* 
-     * TODO:
-     * Resize table down if load factor is less than 0.2
+     * Resize table down if load factor is close to 0.18 or lower
      */
-    
+    if (fabs(ALPHA_MIN - table->load_factor) < 0.1f || (ALPHA_MIN - table->load_factor) >= 0.0f) {
+        resize_table(table, false);
+    }
 }
 
 /*
@@ -169,28 +199,32 @@ HashTable *init_hash_table(unsigned int table_size) {
     return hash_table;
 }
 
-int search(char *key, HashTable *table) {
+int search_entry(const char *key, HashTable *table) {
     if (table == NULL) {
         printf("Table is not valid!\n");
-        return TABLE_IS_NULL;
+        return IS_NULL;
     }
 
-    Fnv32_t hval = fnv_32a_str(key, FNV1_32A_INIT);
-    int index = (hval % table->table_size + table->table_size) % table->table_size;
+    int index = get_index(key, table->table_size);
+    int original_index = index;
 
+    do {
+        index = (index + 1) % table->table_size;
+        if (!table->table[index]) 
+            continue;
+        if (strcmp(table->table[index]->key, key) == 0) {
 #ifdef DEBUG
-    printf("Hash value from %s is %d\n", key, hval);
-    printf("Computed index: %d\n", index);
+            printf("Computed index: %d\n", index);
 #endif
-
-    if (table->table[index] != NULL) {
-        return index;
-    } 
-        
-    return KEY_NOT_FOUND;
+            return index;
+        } 
+    } while (index != original_index);
+       
+    printf("Key does not exist!\n");
+    return FAILURE;
 }
 
-int print_array(HashTable *table) {
+int print_table(HashTable *table) {
     if (table == NULL) {
         printf("Table is not valid!\n");
         return TABLE_IS_NULL;
@@ -218,12 +252,6 @@ int handle_collision(const char *key, char *value, HashTable *table, int index) 
         return TABLE_IS_NULL;
     }
 
-    /*
-     * TEMPORARY
-     */
-    if (table->table_size == table->count_entry)
-        return SUCCESS;
-
     while (table->table[index] != NULL) {
         index = (index + 1) % table->table_size;
     }
@@ -245,7 +273,7 @@ int handle_collision(const char *key, char *value, HashTable *table, int index) 
 int free_table(HashTable *table) {
     if (table == NULL) {
         printf("Table is not valid!\n");
-        return ARRAY_IS_NULL;
+        return IS_NULL;
     }
 
     for (unsigned int i = 0; i < table->table_size; i++) {
@@ -254,6 +282,55 @@ int free_table(HashTable *table) {
 
     free(table->table);
     free(table);
+
+    return SUCCESS;
+}
+
+/*
+ * Adds entry (key, value) pair to the table array at computed index
+ */
+int create_hash_entry(const char *key, char *value, HashTable *table, int index) {
+    HashEntry *entry = (HashEntry *)calloc(1, sizeof(HashEntry));
+    if (!entry) {
+        printf("Could not allocate hash entry!\n");
+        return IS_NULL;
+    }
+
+    entry->key = key;
+    entry->value = value;
+    table->table[index] = entry;
+    table->count_entry++;
+
+    printf("Load factor: %.7f\n", table->load_factor);
+    table->update_lf(table); 
+
+    //printf("Should append: (%s, %s)\n", (table->table[index])->key, (table->table[index])->value);
+
+    return SUCCESS;
+}
+
+/*
+ * Removes pair by its key (if it exists)
+ */
+int remove_hash_entry(const char *key, HashTable *table) {
+    if (table == NULL) {
+        printf("Table is not valid!\n");
+        return IS_NULL;
+    }
+
+    int index = search_entry(key, table);
+
+    if (index < 0) {
+        return FAILURE;
+    } else {
+        free(table->table[index]);
+        table->table[index] = NULL;
+        table->count_entry--;
+        table->update_lf(table);
+#ifdef DEBUG
+        print_table(table);
+#endif
+    }
 
     return SUCCESS;
 }
@@ -300,7 +377,6 @@ int main(void) {
         "K",
         "L"
     };
-//    HashEntry *arr[ARR_SIZE] = {0}; 
 
     HashTable *hash_table = init_hash_table(8);
     if (hash_table == NULL) {
@@ -311,56 +387,34 @@ int main(void) {
 #ifdef DEBUG
     printf("Tried to initialize hash table\n");
     printf("======== Results ======== \n");
-    printf("Table size: %d\n", hash_table->table_size);
+    printf("Table size: %ld\n", hash_table->table_size);
     printf("# of entries: %d\n", hash_table->count_entry);
     printf("load factor (alpha): %.3f\n", hash_table->load_factor);
     printf("Table array address: %p\n", hash_table->table);
 #endif
 
-    Fnv32_t hval;
     int index;
 
     for (int i = 0; i < 37; i += 2) {
-        hval = fnv_32a_str(strings[i], FNV1_32A_INIT); 
-        index = (hval % hash_table->table_size + hash_table->table_size) % hash_table->table_size;
-
+        index = get_index(strings[i], hash_table->table_size);
         if (hash_table->table[index] == NULL) {
-            HashEntry *entry = malloc(sizeof(HashEntry));
-            if (!entry) {
-                printf("Could not allocate hash entry!\n");
-                exit(EXIT_FAILURE);
-            }
-
-            entry->key = strings[i];
-            entry->value = strings[i + 1];
-            hash_table->table[index] = entry;
-            hash_table->count_entry++;
-
-            printf("Load factor: %.7f\n", hash_table->load_factor);
-            hash_table->update_lf(hash_table); 
-
-            printf("Should append: (%s, %s)\n", hash_table->table[index]->key, hash_table->table[index]->value);
-        }
-        else {
+            if (create_hash_entry(strings[i], strings[i + 1], hash_table, index) != SUCCESS) 
+               exit(EXIT_FAILURE);
+        } else {
 #ifdef DEBUG
             printf("Load factor: %.7f\n", hash_table->load_factor);
 #endif
             /*
              * Handle collisions by linear probing
-             */
+             */ 
             if (handle_collision(strings[i], strings[i + 1], hash_table, index) != SUCCESS) {
                 exit(EXIT_FAILURE);
             }
-
-        } 
-
-#ifdef DEBUG
-        printf("hash value from '%s': %d, init hval: %d\n", strings[i], hval, FNV1_32A_INIT);
-#endif
+        }
     }
 
 #ifdef DEBUG
-    if (print_array(hash_table) != SUCCESS) 
+    if (print_table(hash_table) != SUCCESS) 
         exit(EXIT_FAILURE);
 #endif
 
@@ -368,28 +422,30 @@ int main(void) {
      * Do a search in the array by key 
      */
     char key[256];
-    while (scanf("%s", key) != EOF) {
-
+    while (strcmp(key, "quit") != 0) {
+        scanf("%s", key);
 #ifdef DEBUG
         printf("READ KEY: %s\n", key);
 #endif
-
-        index = search(key, hash_table);
-        if (index == ARRAY_IS_NULL) 
-            exit(EXIT_FAILURE);
-
-        if (index == KEY_NOT_FOUND) {
-            printf("Key does not exist!\n");
+        index = search_entry(key, hash_table);
+        if (index < 0) {
+            // exit(EXIT_FAILURE);
         } else {
             printf("key: %s. value: %s\n", hash_table->table[index]->key, hash_table->table[index]->value);
         }
     }
+
+    while (scanf("%s", key) != EOF) {
+        int result = remove_hash_entry(key, hash_table);
+        if (result != SUCCESS) {
+            // exit(EXIT_FAILURE);
+        }
+    }
     
-    /*
-     * TODO: REDO
-     */
-    if (free_table(hash_table) != SUCCESS)
-        exit(EXIT_FAILURE);
+    if (free_table(hash_table) != SUCCESS) {
+
+    }
+       // exit(EXIT_FAILURE);
 
     exit(EXIT_SUCCESS);
 }

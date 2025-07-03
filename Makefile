@@ -4,7 +4,7 @@ CFLAGS=-Wall -Wextra -Werror -lm
 all: hash
 
 hash: hash.c
-	$(CC) $(CFLAGS) hash.c -o hash
+	$(CC) $(CFLAGS) hash.c -g -o hash
 
 test: test.c
 	$(CC) $(CFLAGS) test.c -o test
