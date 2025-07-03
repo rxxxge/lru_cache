@@ -166,7 +166,7 @@ int handle_collision(const char *key, char *value, HashTable *table, int index) 
      * TEMPORARY
      */
     if (table->table_size == table->count_entry)
-        return SUCCESS;
+        return -1;
 
     while (table->table[index] != NULL) {
         index = (index + 1) % table->table_size;
@@ -281,12 +281,7 @@ int main(void) {
             hash_table->count_entry++;
 
             hash_table->update_lf = update_load_factor; 
-            printf("Load factor: %.7f\n", hash_table->load_factor);
-            if (fabs(ALPHA_MAX - hash_table->load_factor) < 0.01f || (hash_table->load_factor - ALPHA_MAX) >= 0.0f) {
-                /*
-                 * TODO: Resize the array
-                 */ printf("NEED TO RESIZE!\n");
-            }
+            printf("Load factor: %.3f\n", hash_table->load_factor);
 
             printf("Should append: (%s, %s)\n", hash_table->table[index]->key, hash_table->table[index]->value);
         }
@@ -295,17 +290,17 @@ int main(void) {
              * Handle collisions by linear probing
              */
             if (handle_collision(strings[i], strings[i + 1], hash_table, index) != SUCCESS) {
-                exit(EXIT_FAILURE);
+                // exit(EXIT_FAILURE);
             }
 
             /*
              * Resize array by 2x its size if load factor approaches 0.75
              */
 #ifdef DEBUG
-            printf("Load factor: %.7f\n", hash_table->load_factor);
-            printf("%.5f\n", fabs(ALPHA_MAX - hash_table->load_factor));
+            printf("Load factor: %.3f\n", hash_table->load_factor);
+            printf("%.2f\n", fabs(ALPHA_MAX - hash_table->load_factor));
 #endif
-            if (fabs(ALPHA_MAX - hash_table->load_factor) < 0.01f || (hash_table->load_factor - ALPHA_MAX) >= 0.0f) {
+            if (fabs(ALPHA_MAX - hash_table->load_factor) >= 0.01) {
                 /*
                  * TODO: Resize the array
                  */ printf("NEED TO RESIZE!\n");
