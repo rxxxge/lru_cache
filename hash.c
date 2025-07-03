@@ -2,6 +2,7 @@
 #include <sys/types.h>
 #include <stdlib.h>
 #include <math.h>
+#include <stdbool.h>
 
 /*
  * 32 bit FNV-0 hash type
@@ -84,15 +85,70 @@ Fnv32_t fnv_32a_str(char *str, Fnv32_t hval) {
  * UTILITY
  * Update the load factor
  */
+
+int resize_table(HashTable *table, bool size_up) {
+    if (size_up) {
+        size_t new_size = table->table_size * 2;
+        HashEntry **new_table = (HashEntry **)calloc(new_size, sizeof(HashEntry *));
+        if (new_table == NULL) {
+            printf("Could not allocate new table array!\n");
+            return IS_NULL; 
+        }
+
+        /*
+         * Copy every element from old table array into new one
+         */
+        for (unsigned int i = 0; i < table->table_size; i++) {
+            if (table->table[i])
+                new_table[i] = table->table[i];
+        }
+
+        /*
+         * Free old table array
+         */
+        free(table->table);
+
+        /*
+         * Assign a new table array
+         */
+        table->table_size *= 2;
+        table->table = new_table;
+    } else {
+        /*
+         * TODO: Size down
+         */
+        printf("Unimplemented!\n");
+    }
+    
+    return SUCCESS;
+}
+
 void update_load_factor(HashTable *table) {
     table->load_factor = (float)table->count_entry / (float)table->table_size;
+
+
+    /*
+     * Resize array by 2x its size if load factor close to 0.72 or higher
+     */
+    if (fabs(ALPHA_MAX - table->load_factor) < 0.1f || (table->load_factor - ALPHA_MAX) >= 0.0f) {
+        /*
+         * Resize up the array
+         */ 
+        resize_table(table, true);
+    }
+
+    /* 
+     * TODO:
+     * Resize table down if load factor is less than 0.2
+     */
+    
 }
 
 /*
  * Initialize hash table
  */
 HashTable *init_hash_table(unsigned int table_size) {
-    HashTable *hash_table = malloc(sizeof(HashTable));
+    HashTable *hash_table = (HashTable *)calloc(1, sizeof(HashTable));
     if (hash_table == NULL) {
         printf("Could not allocate memory for hash table!\n");
         return NULL;
@@ -102,7 +158,7 @@ HashTable *init_hash_table(unsigned int table_size) {
     hash_table->count_entry = 0;
     hash_table->load_factor = (float)hash_table->count_entry / (float)hash_table->table_size;
 
-    hash_table->table = malloc(sizeof(HashEntry) * table_size);
+    hash_table->table = (HashEntry **)calloc(table_size, sizeof(HashEntry *));
     if (hash_table->table == NULL) {
         printf("Could not allocate hash table array!\n");
         return NULL;
@@ -186,18 +242,18 @@ int handle_collision(const char *key, char *value, HashTable *table, int index) 
 /*
  * Free array at the end of program?
  */
-int free_array(HashEntry *arr[]) {
-    if (arr == NULL) {
-        printf("Array is not valid!\n");
+int free_table(HashTable *table) {
+    if (table == NULL) {
+        printf("Table is not valid!\n");
         return ARRAY_IS_NULL;
     }
 
-    for (int i = 0; i < ARR_SIZE; i++) {
-        if (arr[i] != NULL) {
-            free(arr[i]);
-            arr[i] = NULL;
-        }
+    for (unsigned int i = 0; i < table->table_size; i++) {
+        free(table->table[i]);
     }
+
+    free(table->table);
+    free(table);
 
     return SUCCESS;
 }
@@ -280,17 +336,15 @@ int main(void) {
             hash_table->table[index] = entry;
             hash_table->count_entry++;
 
-            hash_table->update_lf = update_load_factor; 
             printf("Load factor: %.7f\n", hash_table->load_factor);
-            if (fabs(ALPHA_MAX - hash_table->load_factor) < 0.01f || (hash_table->load_factor - ALPHA_MAX) >= 0.0f) {
-                /*
-                 * TODO: Resize the array
-                 */ printf("NEED TO RESIZE!\n");
-            }
+            hash_table->update_lf(hash_table); 
 
             printf("Should append: (%s, %s)\n", hash_table->table[index]->key, hash_table->table[index]->value);
         }
         else {
+#ifdef DEBUG
+            printf("Load factor: %.7f\n", hash_table->load_factor);
+#endif
             /*
              * Handle collisions by linear probing
              */
@@ -298,18 +352,6 @@ int main(void) {
                 exit(EXIT_FAILURE);
             }
 
-            /*
-             * Resize array by 2x its size if load factor approaches 0.75
-             */
-#ifdef DEBUG
-            printf("Load factor: %.7f\n", hash_table->load_factor);
-            printf("%.5f\n", fabs(ALPHA_MAX - hash_table->load_factor));
-#endif
-            if (fabs(ALPHA_MAX - hash_table->load_factor) < 0.01f || (hash_table->load_factor - ALPHA_MAX) >= 0.0f) {
-                /*
-                 * TODO: Resize the array
-                 */ printf("NEED TO RESIZE!\n");
-            }
         } 
 
 #ifdef DEBUG
@@ -346,7 +388,7 @@ int main(void) {
     /*
      * TODO: REDO
      */
-    if (free_array(hash_table->table) != SUCCESS)
+    if (free_table(hash_table) != SUCCESS)
         exit(EXIT_FAILURE);
 
     exit(EXIT_SUCCESS);
