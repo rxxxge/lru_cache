@@ -1,5 +1,5 @@
 CC=gcc
-CFLAGS=-Wall -Wextra -Werror -lm
+CFLAGS=-Wall -Wextra -Werror -pedantic -lm
 
 all: hash
 

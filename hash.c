@@ -93,7 +93,10 @@ int get_index(const char *key, size_t table_size) {
     return index; 
 }
 
-
+/*
+ * Resize the table based on load factor by specifying boolean 
+ * "size_up" parameter
+ */
 int resize_table(HashTable *table, bool size_up) {
     if (size_up) {
         size_t new_size = table->table_size * 2;
@@ -122,7 +125,7 @@ int resize_table(HashTable *table, bool size_up) {
         table->table_size = new_size;
         table->table = new_table;
     } else {
-        size_t new_size = table->table_size / 2;
+        size_t new_size = table->table_size == 4 ? table->table_size : table->table_size / 2;
         HashEntry **new_table = (HashEntry **)calloc(new_size, sizeof(HashEntry *));
         if (new_table == NULL) {
             printf("Could not allocate new table array!\n");
@@ -155,23 +158,6 @@ int resize_table(HashTable *table, bool size_up) {
  */
 void update_load_factor(HashTable *table) {
     table->load_factor = (float)table->count_entry / (float)table->table_size;
-
-    /*
-     * Resize array by 2x its size if load factor close to 0.72 or higher
-     */
-    if (fabs(ALPHA_MAX - table->load_factor) < 0.1f || (table->load_factor - ALPHA_MAX) >= 0.0f) {
-        /*
-         * Resize up the array
-         */ 
-        resize_table(table, true);
-    } 
-
-    /* 
-     * Resize table down if load factor is close to 0.18 or lower
-     */
-    if (fabs(ALPHA_MIN - table->load_factor) < 0.1f || (ALPHA_MIN - table->load_factor) >= 0.0f) {
-        resize_table(table, false);
-    }
 }
 
 /*
@@ -304,7 +290,15 @@ int create_hash_entry(const char *key, char *value, HashTable *table, int index)
     printf("Load factor: %.7f\n", table->load_factor);
     table->update_lf(table); 
 
-    //printf("Should append: (%s, %s)\n", (table->table[index])->key, (table->table[index])->value);
+    /*
+     * Resize array by 2x its size if load factor close to 0.72 or higher
+     */
+    if (fabs(ALPHA_MAX - table->load_factor) < 0.1f || (table->load_factor - ALPHA_MAX) >= 0.0f) {
+        /*
+         * Resize up the array
+         */ 
+        resize_table(table, true);
+    } 
 
     return SUCCESS;
 }
@@ -330,6 +324,13 @@ int remove_hash_entry(const char *key, HashTable *table) {
 #ifdef DEBUG
         print_table(table);
 #endif
+    }
+
+    /* 
+     * Resize table down if load factor is close to 0.18 or lower
+     */
+    if (fabs(ALPHA_MIN - table->load_factor) < 0.1f || (ALPHA_MIN - table->load_factor) >= 0.0f) {
+        resize_table(table, false);
     }
 
     return SUCCESS;
@@ -390,13 +391,18 @@ int main(void) {
     printf("Table size: %ld\n", hash_table->table_size);
     printf("# of entries: %d\n", hash_table->count_entry);
     printf("load factor (alpha): %.3f\n", hash_table->load_factor);
-    printf("Table array address: %p\n", hash_table->table);
+    printf("Table array address: %p\n", (void *)hash_table->table);
 #endif
 
     int index;
 
     for (int i = 0; i < 37; i += 2) {
         index = get_index(strings[i], hash_table->table_size);
+        /*
+         * If entry is empty we can fill it with
+         * new (key, value) pair, otherwise look for next
+         * empty slot by linear probing
+         */
         if (hash_table->table[index] == NULL) {
             if (create_hash_entry(strings[i], strings[i + 1], hash_table, index) != SUCCESS) 
                exit(EXIT_FAILURE);
