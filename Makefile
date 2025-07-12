@@ -1,13 +1,10 @@
 CC=gcc
-CFLAGS=-Wall -Wextra -Werror -pedantic -lm
+CFLAGS=-D DEBUG -D TESTS -Wall -Wextra -Werror -pedantic -lm
 
-all: hash
+all: test_hash
 
-hash: hash.c
-	$(CC) $(CFLAGS) hash.c -g -o hash
-
-test: test.c
-	$(CC) $(CFLAGS) test.c -o test
+test_hash: hash.c test_hash.c
+	$(CC) $(CFLAGS) hash.c test_hash.c -g -o test_hash
 
 clean:
-	rm -rf hash test
+	rm -rf test_hash 
