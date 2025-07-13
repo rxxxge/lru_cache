@@ -231,7 +231,7 @@ int search_entry(const char *key, HashTable *table) {
 /*
  * Handle collision by linear probing
  */
-int handle_collision(const char *key, char *value, HashTable *table, int index) {
+int handle_collision(const char *key, char *value, HashTable *table, int index, bool auto_resize) {
     if (table == NULL) {
         printf("Table is not valid!\n");
         return IS_NULL;
@@ -241,13 +241,7 @@ int handle_collision(const char *key, char *value, HashTable *table, int index) 
         index = (index + 1) % table->table_size;
     }
 
-    HashEntry *entry = malloc(sizeof(HashEntry));
-    entry->key = key;
-    entry->value = value;
-    table->table[index] = entry;
-    table->count_entry++;
-
-    if (table->update_lf(table) != SUCCESS)
+    if (create_hash_entry(key, value, table, index, auto_resize) != SUCCESS) 
         return FAILURE;
     
     return index;
@@ -316,11 +310,16 @@ int add_hash_entry(const char *key, char *value, HashTable *table, bool auto_res
         /*
          * If key is the same, it is going to change only the value
          */
-        if (strcmp(table->table[index]->key, key) == 0) { 
+#ifdef DEBUG
+        printf("COMPARING STRINGS\n");
+#endif
+
+        int search_index;
+        if ((search_index = search_entry(key, table)) >= 0) { 
 #ifdef DEBUG
             printf("KEYS ARE THE SAME. REPLACING\n");
 #endif
-            if (create_hash_entry(key, value, table, index, auto_resize) != SUCCESS) {
+            if (create_hash_entry(key, value, table, search_index, auto_resize) != SUCCESS) {
                 return FAILURE;
             }
 
@@ -329,7 +328,7 @@ int add_hash_entry(const char *key, char *value, HashTable *table, bool auto_res
         /*
          * Handle collisions by linear probing
          */
-        index = handle_collision(key, value, table, index);
+        index = handle_collision(key, value, table, index, auto_resize);
         if (index < 0)
             return FAILURE;
     }

@@ -103,7 +103,7 @@ int search_entry(const char *key, HashTable *table);
 /*
  * Handle collision by linear probing
  */
-int handle_collision(const char *key, char *value, HashTable *table, int index);
+int handle_collision(const char *key, char *value, HashTable *table, int index, bool auto_resize);
 
 /*
  * Creates entry (key, value) pair to the table array at computed index
