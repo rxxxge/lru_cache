@@ -34,7 +34,7 @@ int main(void) {
 #ifdef TESTS
     int index;
     
-    if ((index = add_hash_entry("key1", "val1", hash_table, RESIZE_AUTOMATICALLY)) < 0) {
+    if ((index = add_hash_entry("key1", "val1", hash_table)) < 0) {
         fprintf(stderr, "TEST 1 FAILED: Couldn't add key, value pair!\n");
         exit(EXIT_FAILURE);
     }
@@ -44,7 +44,7 @@ int main(void) {
         exit(EXIT_FAILURE);
 #endif
 
-    if ((index = add_hash_entry("key2", "val2", hash_table, RESIZE_AUTOMATICALLY)) < 0) {
+    if ((index = add_hash_entry("key2", "val2", hash_table)) < 0) {
         fprintf(stderr, "TEST 2 FAILED: Couldn't add key, value pair!\n");
         exit(EXIT_FAILURE);
     }
@@ -54,7 +54,7 @@ int main(void) {
         exit(EXIT_FAILURE);
 #endif
 
-    if ((index = add_hash_entry("key333", "val3", hash_table, RESIZE_AUTOMATICALLY)) < 0) {
+    if ((index = add_hash_entry("key333", "val3", hash_table)) < 0) {
         fprintf(stderr, "TEST 3 FAILED: Couldn't add key, value pair!\n");
         exit(EXIT_FAILURE);
     }
@@ -64,7 +64,7 @@ int main(void) {
         exit(EXIT_FAILURE);
 #endif
       
-    if ((index = add_hash_entry("key4", "val4", hash_table, RESIZE_AUTOMATICALLY)) < 0) {
+    if ((index = add_hash_entry("key4", "val4", hash_table)) < 0) {
         fprintf(stderr, "TEST 4 FAILED: Couldn't add key, value pair!\n");
         exit(EXIT_FAILURE);
     }
@@ -75,7 +75,7 @@ int main(void) {
         exit(EXIT_FAILURE);
 #endif
 
-    if ((index = add_hash_entry("key4", "val15", hash_table, RESIZE_AUTOMATICALLY)) < 0) {
+    if ((index = add_hash_entry("key4", "val15", hash_table)) < 0) {
         fprintf(stderr, "TEST 5 FAILED: Couldn't add key, value pair!\n");
         exit(EXIT_FAILURE);
     }

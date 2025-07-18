@@ -1,52 +1,16 @@
-#include <stdio.h>
-#include <stdlib.h>
-
-#define SUCCESS 0
-#define FAILURE -1
-#define IS_NULL -2
-
-typedef struct Node {
-    void *data;
-    struct Node *next;
-    struct Node *prev;
-} Node;
-
 /*
- * Doubly Linked List
+ * dll.c
+ * Implementation of doubly linked list methods
  */
-typedef struct DLL {
-   size_t list_size;
-   Node *head;
-   Node *tail;
-} DLL;
+#include "dll.h"
 
 DLL *init_linked_list(void) {
-    DLL *dll = calloc(1, sizeof(DLL)); 
+    DLL *dll = (DLL *)calloc(1, sizeof(DLL)); 
     if (!dll) {
         fprintf(stderr, "Could not allocate doubly linked list!\n");
         return NULL;
     }
     dll->list_size = 0;
-    
-    /*
-     * Allocate memory for tail
-     */
-
-    //head->data = NULL;
-    //head->next = tail;
-    //head->prev = NULL;
-
-    //tail->data = NULL;
-    //tail->next = NULL;
-    //tail->prev = head;
-#ifdef DEBUG
-    //printf("ADDRESS OF HEAD: %p\n", (void *)head);
-    //printf("ADDRESS OF TAIL: %p\n", (void *)tail);
-
-    //printf("ADDRESS OF HEAD->NEXT: %p\n", (void *)head->next);
-    //printf("ADDRESS OF TAIL->PREV: %p\n", (void *)tail->prev);
-#endif
-
     dll->head = NULL;
     dll->tail = NULL;
 
@@ -59,7 +23,7 @@ int insert_at_front(DLL *dll, void *data) {
         return IS_NULL;
     }
 
-    Node *new_node = calloc(1, sizeof(Node));
+    Node *new_node = (Node *)calloc(1, sizeof(Node));
     if (!new_node) {
         fprintf(stderr, "Could not allocate a node!\n");
         return IS_NULL;
@@ -92,7 +56,7 @@ int insert_at_end(DLL *dll, void *data) {
         return IS_NULL;
     }
 
-    Node *new_node = calloc(1, sizeof(Node));
+    Node *new_node = (Node *)calloc(1, sizeof(Node));
     if (!new_node) {
         fprintf(stderr, "Could not allocate a node!\n");
         return IS_NULL;
@@ -138,6 +102,7 @@ int delete_at_front(DLL *dll) {
 
     (dll->list_size)--;
     free(old_head);
+    old_head = NULL;
 
     return SUCCESS;
 }
@@ -161,6 +126,7 @@ int delete_at_end(DLL *dll) {
 
     (dll->list_size)--;
     free(old_tail);
+    old_tail = NULL;
 
     return SUCCESS;
 }
@@ -176,111 +142,38 @@ void print_list(DLL *dll) {
     printf("HEAD ");
     while (current) {
         if (current == dll->tail) {
-            printf("(%d) ", *(int *)(current->data));
+            printf("(%s) ", (char *)(current->data));
             current = current->next;
             continue;
         }
-        printf("(%d) <--> ", *(int *)(current->data));
+        printf("(%s) <--> ", (char *)(current->data));
         current = current->next;
     }
 
     printf("TAIL\n");
 }
 
-int main(void) {
-    DLL *dll = init_linked_list(); 
+void free_dll(DLL *dll) {
     if (!dll) {
         fprintf(stderr, "Doubly linked list is not valid or is null!\n");
-        exit(EXIT_FAILURE);
+        fprintf(stderr, "Could not free Doubly linked list!\n");
+        return;
     }
 
-    printf("DLL size: %ld\n", dll->list_size);
+    /*
+     * Start with HEAD node 
+     * While current is not NULL or current == tail->next
+     * Save next node and free current one
+     */
+    Node *current = dll->head;
+    while (current) {
+        Node* next_node = current->next;
+        free(current);
+        current = next_node;
+    }    
 
-#ifdef DEBUG
-    print_list(dll);
-#endif
-
-    int data = 1;
-    if (insert_at_front(dll, &data) != SUCCESS)
-        exit(EXIT_FAILURE);
-
-    printf("DLL size: %ld\n", dll->list_size);
-    printf("DLL head: %p\n", (void *)dll->head);
-    printf("DLL head->next: %p\n", (void *)dll->head->next);
-    printf("DLL tail: %p\n", (void *)dll->tail);
-    printf("DLL tail->prev: %p\n", (void *)dll->tail->prev);
-
-    printf("Head node data: %d\n", *(int *)(dll->head->data));
-
-#ifdef DEBUG
-    print_list(dll);
-#endif
+    free(dll);
+    dll = NULL;
     
-    int data2 = 2;
-    if (insert_at_front(dll, &data2) != SUCCESS)
-        exit(EXIT_FAILURE);
-
-    printf("DLL size: %ld\n", dll->list_size);
-    printf("DLL head: %p\n", (void *)dll->head);
-    printf("DLL head->next: %p\n", (void *)dll->head->next);
-    printf("DLL tail: %p\n", (void *)dll->tail);
-    printf("DLL tail->prev: %p\n", (void *)dll->tail->prev);
-
-    printf("Head node data: %d\n", *(int *)(dll->head->data));
-
-#ifdef DEBUG
-    print_list(dll);
-#endif
-
-    int data3 = 3;
-    if (insert_at_front(dll, &data3) != SUCCESS)
-        exit(EXIT_FAILURE);
-
-    printf("DLL size: %ld\n", dll->list_size);
-    printf("DLL head: %p\n", (void *)dll->head);
-    printf("DLL head->next: %p\n", (void *)dll->head->next);
-    printf("DLL tail: %p\n", (void *)dll->tail);
-    printf("DLL tail->prev: %p\n", (void *)dll->tail->prev);
-
-    printf("Head node data: %d\n", *(int *)(dll->head->data));
-    printf("Tail node data: %d\n", *(int *)(dll->tail->data));
-
-#ifdef DEBUG
-    print_list(dll);
-#endif
-
-    int data4 = 4;
-    if (insert_at_end(dll, &data4) != SUCCESS)
-        exit(EXIT_FAILURE);
-
-    printf("DLL size: %ld\n", dll->list_size);
-    printf("DLL head: %p\n", (void *)dll->head);
-    printf("DLL head->next: %p\n", (void *)dll->head->next);
-    printf("DLL tail: %p\n", (void *)dll->tail);
-    printf("DLL tail->prev: %p\n", (void *)dll->tail->prev);
-
-    printf("Head node data: %d\n", *(int *)(dll->head->data));
-    printf("Tail node data: %d\n", *(int *)(dll->tail->data));
-
-#ifdef DEBUG
-    print_list(dll);
-#endif
-
-    if (delete_at_front(dll) != SUCCESS)
-        exit(EXIT_FAILURE);
-
-    printf("DLL size: %ld\n", dll->list_size);
-    printf("DLL head: %p\n", (void *)dll->head);
-    printf("DLL head->next: %p\n", (void *)dll->head->next);
-    printf("DLL tail: %p\n", (void *)dll->tail);
-    printf("DLL tail->prev: %p\n", (void *)dll->tail->prev);
-
-    printf("Head node data: %d\n", *(int *)(dll->head->data));
-    printf("Tail node data: %d\n", *(int *)(dll->tail->data));
-    
-#ifdef DEBUG
-    print_list(dll);
-#endif
-
-    exit(EXIT_SUCCESS);
+    return;
 }

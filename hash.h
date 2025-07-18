@@ -1,6 +1,10 @@
 #ifndef _HASH_H_
 #define _HASH_H_
 
+#include <stddef.h>
+#include <stdbool.h>
+#include <sys/types.h>
+
 /*
  * 32 bit FNV-0 hash type
  */
@@ -38,7 +42,7 @@ typedef u_int32_t Fnv32_t;
  */
 typedef struct HashEntry {
     const char *key;
-    char *value;
+    void *value;
 } HashEntry;
 
 typedef struct HashTable {
@@ -92,7 +96,7 @@ int resize_table(HashTable *table, bool size_up);
 /*
  * Initialize hash table
  */
-HashTable *init_hash_table(unsigned int table_size);
+HashTable *init_hash_table(size_t table_size);
 
 /*
  * Search entry by the key.
@@ -103,18 +107,19 @@ int search_entry(const char *key, HashTable *table);
 /*
  * Handle collision by linear probing
  */
-int handle_collision(const char *key, char *value, HashTable *table, int index, bool auto_resize);
+int handle_collision(const char *key, void *value, HashTable *table, int index, bool auto_resize);
 
 /*
  * Creates entry (key, value) pair to the table array at computed index
  */
-int create_hash_entry(const char *key, char *value, HashTable *table, int index, bool auto_resize);
+int create_hash_entry(const char *key, void *value, HashTable *table, int index, bool auto_resize);
 
 /*
  * Wrapper function around create_hash_entry to add entry to the table array
  * Returns index on success
+ * Resizes automatically
  */
-int add_hash_entry(const char *key, char *value, HashTable *table, bool auto_resize);
+int add_hash_entry(const char *key, void *value, HashTable *table);
 
 /*
  * Removes pair by its key (if it exists)

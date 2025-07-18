@@ -4,7 +4,6 @@
  */
 
 #include <stdio.h>
-#include <sys/types.h>
 #include <stdlib.h>
 #include <math.h>
 #include <stdbool.h>
@@ -33,6 +32,11 @@ Fnv32_t fnv_32a_str(const char *str, Fnv32_t hval) {
  * Get index using key and hash function
  */
 int get_index(const char *key, size_t table_size) {
+    if (key == NULL) {
+        fprintf(stderr, "The key provided is invalid or NULL!\n");
+        return IS_NULL;
+    }
+
     Fnv32_t hval = fnv_32a_str(key, FNV1_32A_INIT);
     int index = (hval % table_size + table_size) % table_size;
 #ifdef DEBUG
@@ -48,7 +52,7 @@ int get_index(const char *key, size_t table_size) {
  */
 int update_load_factor(HashTable *table) {
     if (table == NULL) {
-        printf("Table is not valid!\n");
+        fprintf(stderr, "Table is not valid!\n");
         return IS_NULL;
     }
 
@@ -69,7 +73,7 @@ int print_table(HashTable *table) {
     printf("\n[Index] --- (key, value)\n");
     for (unsigned int i = 0; i < table->table_size; i++) {
         if (table->table[i] != NULL) {
-            printf("[%d] --- (%s, %s)\n |\n", i, table->table[i]->key, table->table[i]->value);
+            printf("[%d] --- (%s, %s)\n |\n", i, table->table[i]->key, (char *)table->table[i]->value);
         } else {
             printf("[%d]\n |\n", i);
         }
@@ -164,6 +168,8 @@ int resize_table(HashTable *table, bool size_up) {
                     new_table[i] = table->table[i];
                 } else {
                     int index = get_index(table->table[i]->key, new_size);
+                    if (index < 0)
+                        return FAILURE;
                     new_table[index] = table->table[i];
                 } 
             }
@@ -181,7 +187,7 @@ int resize_table(HashTable *table, bool size_up) {
 /*
  * Initialize hash table
  */
-HashTable *init_hash_table(unsigned int table_size) {
+HashTable *init_hash_table(size_t table_size) {
     HashTable *hash_table = (HashTable *)calloc(1, sizeof(HashTable));
     if (hash_table == NULL) {
         printf("Could not allocate memory for hash table!\n");
@@ -205,11 +211,18 @@ HashTable *init_hash_table(unsigned int table_size) {
 
 int search_entry(const char *key, HashTable *table) {
     if (table == NULL) {
-        printf("Table is not valid!\n");
+        fprintf(stderr, "Table is not valid!\n");
+        return IS_NULL;
+    }
+
+    if (key == NULL) {
+        fprintf(stderr, "The key provided is invalid or NULL!\n");
         return IS_NULL;
     }
 
     int index = get_index(key, table->table_size);
+    if (index < 0)
+        return FAILURE;
     int original_index = index;
 
     do {
@@ -231,9 +244,19 @@ int search_entry(const char *key, HashTable *table) {
 /*
  * Handle collision by linear probing
  */
-int handle_collision(const char *key, char *value, HashTable *table, int index, bool auto_resize) {
+int handle_collision(const char *key, void *value, HashTable *table, int index, bool auto_resize) {
     if (table == NULL) {
         printf("Table is not valid!\n");
+        return IS_NULL;
+    }
+
+    if (key == NULL) {
+        fprintf(stderr, "The key provided is invalid or NULL!\n");
+        return IS_NULL;
+    }
+
+    if (value == NULL) {
+        fprintf(stderr, "The value provided is invalid or NULL!\n");
         return IS_NULL;
     }
 
@@ -250,9 +273,19 @@ int handle_collision(const char *key, char *value, HashTable *table, int index, 
 /*
  * Adds entry (key, value) pair to the table array at computed index
  */
-int create_hash_entry(const char *key, char *value, HashTable *table, int index, bool auto_resize) {
+int create_hash_entry(const char *key, void *value, HashTable *table, int index, bool auto_resize) {
     if (table == NULL) {
-        printf("Table is not valid!\n");
+        fprintf(stderr, "Table is not valid!\n");
+        return IS_NULL;
+    }
+
+    if (key == NULL) {
+        fprintf(stderr, "The key provided is invalid or NULL!\n");
+        return IS_NULL;
+    }
+
+    if (value == NULL) {
+        fprintf(stderr, "The value provided is invalid or NULL!\n");
         return IS_NULL;
     }
 
@@ -266,9 +299,9 @@ int create_hash_entry(const char *key, char *value, HashTable *table, int index,
     entry->value = value; 
     table->table[index] = entry;
     table->count_entry++;
-#ifdef DEBUG
+#ifdef HASH_DEBUG
     printf("Load factor: %.7f\n", table->load_factor);
-    printf("RECEIVED KEY: %s, VALUE: %s in create_hash_entry at index: %d\n", entry->key, entry->value, index);
+    printf("RECEIVED KEY: %s, VALUE: %p in create_hash_entry at index: %d\n", entry->key, entry->value, index);
 #endif
     if (table->update_lf(table) != SUCCESS)
         return FAILURE;
@@ -288,13 +321,27 @@ int create_hash_entry(const char *key, char *value, HashTable *table, int index,
  * Wrapper function around create_hash_entry to add entry to the table array
  * Returns index on success
  */
-int add_hash_entry(const char *key, char *value, HashTable *table, bool auto_resize) {
+int add_hash_entry(const char *key, void *value, HashTable *table) {
     if (table == NULL) {
         printf("Table is not valid!\n");
         return IS_NULL;
     }
 
+    if (key == NULL) {
+        fprintf(stderr, "The key provided is invalid or NULL!\n");
+        return IS_NULL;
+    }
+
+    if (value == NULL) {
+        fprintf(stderr, "The value provided is invalid or NULL!\n");
+        return IS_NULL;
+    }
+
+    bool auto_resize = true;
     int index = get_index(key, table->table_size);
+    if (index < 0) {
+        return FAILURE;
+    }
     /*
      * If entry is empty we can fill it with
      * new (key, value) pair, otherwise look for next
@@ -333,10 +380,6 @@ int add_hash_entry(const char *key, char *value, HashTable *table, bool auto_res
             return FAILURE;
     }
 
-#ifdef DEBUG
-    // print_table(table);
-#endif
-
     return index;
 }
 
@@ -351,6 +394,11 @@ int remove_hash_entry(const char *key, HashTable *table, bool auto_resize) {
         return IS_NULL;
     }
 
+    if (key == NULL) {
+        fprintf(stderr, "The key provided is invalid or NULL!\n");
+        return IS_NULL;
+    }
+
     int index = search_entry(key, table);
 
     if (index < 0) {
@@ -362,10 +410,6 @@ int remove_hash_entry(const char *key, HashTable *table, bool auto_resize) {
 
         if (table->update_lf(table) != SUCCESS)
             return FAILURE;
-
-#ifdef DEBUG
-        // print_table(table);
-#endif
     }
     
     /*
@@ -383,6 +427,11 @@ int remove_hash_entry(const char *key, HashTable *table, bool auto_resize) {
  * Free the hash table at the end of program
  */
 void free_table(HashTable *table) {
+    if (table == NULL) {
+        printf("Table is not valid!\n");
+        return;
+    }
+
     for (unsigned int i = 0; i < table->table_size; i++) {
         free(table->table[i]);
     }
