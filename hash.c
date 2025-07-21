@@ -73,7 +73,7 @@ int print_table(HashTable *table) {
     printf("\n[Index] --- (key, value)\n");
     for (unsigned int i = 0; i < table->table_size; i++) {
         if (table->table[i] != NULL) {
-            printf("[%d] --- (%s, %s)\n |\n", i, table->table[i]->key, (char *)table->table[i]->value);
+            printf("[%d] --- (%s, %p)\n |\n", i, table->table[i]->key, (void *)table->table[i]->value);
         } else {
             printf("[%d]\n |\n", i);
         }
@@ -321,7 +321,7 @@ int create_hash_entry(const char *key, void *value, HashTable *table, int index,
  * Wrapper function around create_hash_entry to add entry to the table array
  * Returns index on success
  */
-int add_hash_entry(const char *key, void *value, HashTable *table) {
+int add_hash_entry(const char *key, void *value, HashTable *table, bool auto_resize) {
     if (table == NULL) {
         printf("Table is not valid!\n");
         return IS_NULL;
@@ -337,7 +337,6 @@ int add_hash_entry(const char *key, void *value, HashTable *table) {
         return IS_NULL;
     }
 
-    bool auto_resize = true;
     int index = get_index(key, table->table_size);
     if (index < 0) {
         return FAILURE;
@@ -434,10 +433,13 @@ void free_table(HashTable *table) {
 
     for (unsigned int i = 0; i < table->table_size; i++) {
         free(table->table[i]);
+        table->table[i] = NULL;
     }
 
     free(table->table);
     free(table);
+
+    table = NULL;
     
     return;
 }

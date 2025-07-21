@@ -7,10 +7,17 @@
 
 typedef struct LRUCache {
     size_t capacity;
-    size_t size;
     HashTable *hash_table;
     DLL *dll;
 } LRUCache;
+
+typedef struct Pair {
+    void *key;
+    void *value;
+} Pair;
+
+// Temp
+void print_list_pair(DLL *dll);
 
 LRUCache *init_lru_cache(size_t capacity);
 int get(LRUCache *lru, const char *key);

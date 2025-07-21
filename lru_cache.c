@@ -1,5 +1,27 @@
 #include "lru_cache.h"
 
+void print_list_pair(DLL *dll) {
+    if (!dll) {
+        fprintf(stderr, "Doubly linked list is not valid or is null!\n");
+        return;
+    }
+    
+    Node *current = dll->head;
+    
+    printf("HEAD ");
+    while (current) {
+        if (current == dll->tail) {
+            printf("(%s) ", (char *)((Pair *)current->data)->key);
+            current = current->next;
+            continue;
+        }
+        printf("(%s) <--> ",  (char *)((Pair *)current->data)->key);
+        current = current->next;
+    }
+
+    printf("TAIL\n");
+}
+
 LRUCache *init_lru_cache(size_t capacity) {
     LRUCache *lru = (LRUCache *)calloc(1, sizeof(LRUCache));
     if (!lru) {
@@ -12,7 +34,6 @@ LRUCache *init_lru_cache(size_t capacity) {
         return NULL;
     }
     lru->capacity = capacity;
-    lru->size = 0;
     lru->hash_table = init_hash_table(capacity * 2);
     lru->dll = init_linked_list();
     if (!lru->dll || !lru->hash_table)
@@ -46,7 +67,7 @@ int get(LRUCache *lru, const char *key) {
     Node *accessed_node = (Node *)lru->hash_table->table[index]->value;
 
 #ifdef DEBUG
-    printf("Found value: %s, using key: %s\n", (char *)(accessed_node->data), key);
+    printf("Found value: %s, using key: %s\n", (char *)((Pair *)accessed_node->data)->value, key);
 #endif
 
     /*
@@ -98,35 +119,53 @@ int put(LRUCache *lru, const char *key, char *value) {
         return IS_NULL;
     }
 
-    if (lru->size == lru->capacity) {
-        int index = search_entry(key, lru->hash_table);
+    if (lru->hash_table->count_entry == lru->capacity) {
+        const char *tail_key = (char *)((Pair *)lru->dll->tail->data)->key;
+
+        printf("TAIL_KEY: %s\n", tail_key);
+        // Find Least Recently Used entry 
+        int index = search_entry(tail_key, lru->hash_table);
         if (index < 0) {
             fprintf(stderr, "LRU: Could not find entry in the hash table!\n");
             return FAILURE;
         }
 
+        /* Free the hash table from the LRU entry and remove tail node 
+         * from the end of the linked list
+         */
         free(lru->hash_table->table[index]);
+        lru->hash_table->table[index] = NULL;
+
+        free(lru->dll->tail->data);
+        lru->dll->tail->data = NULL;
         if (delete_at_end(lru->dll) != SUCCESS)
             return FAILURE;
-
+    }
+    
+    Pair *pair = calloc(1, sizeof(Pair));
+    if (!pair) {
+        fprintf(stderr, "Could not allocate Pair struct!\n");
+        return IS_NULL;
     }
 
-    if (insert_at_front(lru->dll, (void *)value) != SUCCESS) {
+    pair->key = (void *)key;
+    pair->value = (void *)value;
+
+    if (insert_at_front(lru->dll, (void *)pair) != SUCCESS) {
         fprintf(stderr, "LRU: Could not insert entry to the linked list!\n");
         return FAILURE;
     }
 
 #ifdef DEBUG
-    printf("DEBUG: DLL HEAD DATA FIELD CONTAINS: %s\n", (char *)lru->dll->head->data);
+    printf("DEBUG: DLL HEAD DATA FIELD CONTAINS: %s\n", (char *)((Pair *)lru->dll->head->data)->key);
 #endif
 
-    int index = add_hash_entry(key, (void *)lru->dll->head, lru->hash_table);
+    bool auto_resize = false; // Do not auto resize the hash table
+    int index = add_hash_entry(key, (void *)lru->dll->head, lru->hash_table, auto_resize);
     if (index < 0) {
         fprintf(stderr, "LRU: Could not add entry to the hash table!\n");
         return FAILURE;
     }
-
-    (lru->size)++;
 
     return SUCCESS;
 }
@@ -137,7 +176,7 @@ void free_lru(LRUCache *lru) {
         fprintf(stderr, "Could not free LRUCache!\n");
         return;
     }
-
+    
     free_table(lru->hash_table);
     free_dll(lru->dll);
     free(lru);

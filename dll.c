@@ -142,11 +142,11 @@ void print_list(DLL *dll) {
     printf("HEAD ");
     while (current) {
         if (current == dll->tail) {
-            printf("(%s) ", (char *)(current->data));
+            printf("(%p) ", current->data);
             current = current->next;
             continue;
         }
-        printf("(%s) <--> ", (char *)(current->data));
+        printf("(%p) <--> ", current->data);
         current = current->next;
     }
 
@@ -168,6 +168,10 @@ void free_dll(DLL *dll) {
     Node *current = dll->head;
     while (current) {
         Node* next_node = current->next;
+
+        free(current->data);
+        current->data = NULL;
+
         free(current);
         current = next_node;
     }    

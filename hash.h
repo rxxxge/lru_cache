@@ -119,7 +119,7 @@ int create_hash_entry(const char *key, void *value, HashTable *table, int index,
  * Returns index on success
  * Resizes automatically
  */
-int add_hash_entry(const char *key, void *value, HashTable *table);
+int add_hash_entry(const char *key, void *value, HashTable *table, bool auto_resize);
 
 /*
  * Removes pair by its key (if it exists)
